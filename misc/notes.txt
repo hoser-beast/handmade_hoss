@@ -1,0 +1,6 @@
+`subst` helps in the case of moving files and folders around, the path can still be accessible by changing the subst'd directory.
+
+	subst <drive_letter>: <directory_path>
+
+i.e., `subst w: %USERPROFILE%\Documents\Cloud\handmade_hoss`
+
