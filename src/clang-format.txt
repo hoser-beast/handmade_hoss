@@ -83,6 +83,7 @@ BreakAfterReturnType: AllDefinitions
 BreakBeforeBraces: Allman
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: true
+ColumnLimit: 100
 IndentCaseLabels: true
 IndentCaseBlocks: false
 IndentWidth: 4
