@@ -1,50 +1,91 @@
+#include <stdint.h>
 #include <windows.h>
 
 #define local_persist   static
 #define global_variable static
 #define internal        static
 
+typedef int8_t  i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t  u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
 // [TODO] Global variable for now.
 global_variable bool g_running;
 
 global_variable BITMAPINFO g_bitmap_info;
 global_variable void*      g_bitmap_memory;
-global_variable HBITMAP    g_bitmap_handle;
-global_variable HDC        g_bitmap_device_context;
+global_variable i32        g_bitmap_width;
+global_variable i32        g_bitmap_height;
 
 internal void
-win32_resize_dib_section(int width, int height)
+render_weird_gradient(i32 blue_offset, i32 green_offset)
+{
+    i32 pitch = g_bitmap_width * 4;
+    u8* row   = (u8*)g_bitmap_memory;
+
+    for (i32 y = 0; y < g_bitmap_height; y++)
+    {
+        u32* pixel = (u32*)row;
+
+        for (i32 x = 0; x < g_bitmap_width; x++)
+        {
+            // Pixel in memory: BB GG RR xx where xx is padding, BB is blue, GG
+            // is green, and RR is red.
+            u8 blue  = x + blue_offset;
+            u8 green = y + green_offset;
+
+            *pixel++ = (green << 8) | blue;
+        }
+
+        row += pitch;
+    }
+}
+
+internal void
+win32_resize_dib_section(i32 width, i32 height)
 {
     // [TODO] Bulletproof this.
     // Maybe don't free first, free after, then free first if that fails.
-    if (g_bitmap_handle)
+
+    if (g_bitmap_memory)
     {
-        DeleteObject(g_bitmap_handle);
+        VirtualFree(g_bitmap_memory, 0, MEM_RELEASE);
     }
 
-    if (!g_bitmap_device_context)
-    {
-        // [TODO] Should we recreate these under certain special circumstances?
-        g_bitmap_device_context = CreateCompatibleDC(0);
-    }
+    g_bitmap_width  = width;
+    g_bitmap_height = height;
 
     g_bitmap_info.bmiHeader.biSize        = sizeof(g_bitmap_info.bmiHeader);
-    g_bitmap_info.bmiHeader.biWidth       = width;
-    g_bitmap_info.bmiHeader.biHeight      = height;
+    g_bitmap_info.bmiHeader.biWidth       = g_bitmap_width;
+    g_bitmap_info.bmiHeader.biHeight      = -g_bitmap_height;
     g_bitmap_info.bmiHeader.biPlanes      = 1;
     g_bitmap_info.bmiHeader.biBitCount    = 32;
     g_bitmap_info.bmiHeader.biCompression = BI_RGB;
 
     // [TODO] Maybe we can just allocate this ourselves?
-    g_bitmap_handle = CreateDIBSection(g_bitmap_device_context, &g_bitmap_info,
-                                       DIB_RGB_COLORS, &g_bitmap_memory, 0, 0);
+    i32 bitmap_memory_size = g_bitmap_width * g_bitmap_height * 4;
+    g_bitmap_memory
+        = VirtualAlloc(0, bitmap_memory_size, MEM_COMMIT, PAGE_READWRITE);
+
+    // [TODO] Probably clear this to black.
 }
 
 internal void
-win32_update_window(HDC device_context, int x, int y, int w, int h)
+win32_update_window(HDC device_context, RECT* client_rect, i32 x, i32 y, i32 w,
+                    i32 h)
 {
-    StretchDIBits(device_context, x, y, w, h, x, y, w, h, g_bitmap_memory,
-                  &g_bitmap_info, DIB_RGB_COLORS, SRCCOPY);
+    i32 window_width  = client_rect->right - client_rect->left;
+    i32 window_height = client_rect->bottom - client_rect->top;
+
+    StretchDIBits(device_context, 0, 0, g_bitmap_width, g_bitmap_height, 0, 0,
+                  window_width, window_height, g_bitmap_memory, &g_bitmap_info,
+                  DIB_RGB_COLORS, SRCCOPY);
 }
 
 LRESULT CALLBACK
@@ -77,8 +118,8 @@ win32_main_window_proc(HWND window, UINT message, WPARAM w_param,
             RECT client_rect;
             GetClientRect(window, &client_rect);
 
-            int w = client_rect.right - client_rect.left;
-            int h = client_rect.bottom - client_rect.top;
+            i32 w = client_rect.right - client_rect.left;
+            i32 h = client_rect.bottom - client_rect.top;
 
             win32_resize_dib_section(w, h);
             break;
@@ -88,12 +129,15 @@ win32_main_window_proc(HWND window, UINT message, WPARAM w_param,
             PAINTSTRUCT paint;
             HDC         device_context = BeginPaint(window, &paint);
 
-            int x = paint.rcPaint.left;
-            int y = paint.rcPaint.top;
-            int w = paint.rcPaint.right - paint.rcPaint.left;
-            int h = paint.rcPaint.bottom - paint.rcPaint.top;
+            i32 x = paint.rcPaint.left;
+            i32 y = paint.rcPaint.top;
+            i32 w = paint.rcPaint.right - paint.rcPaint.left;
+            i32 h = paint.rcPaint.bottom - paint.rcPaint.top;
 
-            win32_update_window(device_context, x, y, w, h);
+            RECT client_rect;
+            GetClientRect(window, &client_rect);
+
+            win32_update_window(device_context, &client_rect, x, y, w, h);
             EndPaint(window, &paint);
             break;
         }
@@ -107,9 +151,9 @@ win32_main_window_proc(HWND window, UINT message, WPARAM w_param,
     return result;
 }
 
-int CALLBACK
+i32 CALLBACK
 WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line,
-        int cmd_show)
+        i32 cmd_show)
 {
     WNDCLASS window_class = {};
 
@@ -120,30 +164,45 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line,
 
     if (RegisterClass(&window_class))
     {
-        HWND window_handle
+        HWND window
             = CreateWindowEx(0, window_class.lpszClassName, "Handmade Hoss",
                              WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT,
                              CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0,
                              instance, 0);
 
-        if (window_handle)
+        if (window)
         {
-            MSG message;
+            i32 blue_offset  = 0;
+            i32 green_offset = 0;
 
             g_running = true;
             while (g_running)
             {
-                BOOL message_result = GetMessage(&message, 0, 0, 0);
+                MSG message;
 
-                if (message_result > 0)
+                while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
                 {
+                    if (message.message == WM_QUIT)
+                    {
+                        g_running = false;
+                    }
                     TranslateMessage(&message);
                     DispatchMessage(&message);
                 }
-                else
-                {
-                    break;
-                }
+
+                render_weird_gradient(blue_offset, green_offset);
+
+                RECT client_rect;
+                GetClientRect(window, &client_rect);
+
+                i32 w = client_rect.right - client_rect.left;
+                i32 h = client_rect.bottom - client_rect.top;
+
+                HDC device_context = GetDC(window);
+                win32_update_window(device_context, &client_rect, 0, 0, w, h);
+                ReleaseDC(window, device_context);
+
+                blue_offset++;
             }
         }
         else

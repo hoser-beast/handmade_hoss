@@ -29,3 +29,12 @@ They create nightmares for things like thread safety, etc.
 The custom decorators we made for the overloaded term `static` (i.e., `#define local_persist static`) not only is useful in classifying their use, they are also helpful for searching variables (i.e., `local_persist`) that are statically defined in case we wish to remove them.
 
 Global variables are always initialized to zero.
+
+
+
+
+GetMessageA() blocks when we run out of messages. It will wait until another message comes to the queue, do other things, switch to other processes, etc. to use that CPU time effectively.
+
+Advantage of 0 vs NULL: using 0 requires less defines.
+
+malloc() vs VirtualAlloc(): malloc goes through a crapload of C runtime library code, then call HeapAlloc, then eventually run VirtualAlloc.
