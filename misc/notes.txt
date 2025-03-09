@@ -26,3 +26,6 @@ switch(x)
 Static variables are tremendously useful for the purpose of debugging, however, they probably should never be used in code that is shipped.
 They create nightmares for things like thread safety, etc.
 
+The custom decorators we made for the overloaded term `static` (i.e., `#define local_persist static`) not only is useful in classifying their use, they are also helpful for searching variables (i.e., `local_persist`) that are statically defined in case we wish to remove them.
+
+Global variables are always initialized to zero.

@@ -56,10 +56,9 @@ AllowShortCaseExpressionOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortEnumsOnASingleLine: true
 AllowShortIfStatementsOnASingleLine: WithoutElse
-AlwaysBreakAfterReturnType: All
 AlwaysBreakBeforeMultilineStrings: false
-BinPackArguments: false
-BinPackParameters: false
+BinPackArguments: true
+BinPackParameters: true
 BitFieldColonSpacing: After
 BraceWrapping:
   AfterCaseLabel: true
@@ -80,6 +79,7 @@ BraceWrapping:
   BeforeCatch: true
   AfterExternBlock: true
   AfterUnion: true
+BreakAfterReturnType: AllDefinitions
 BreakBeforeBraces: Allman
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: true
@@ -90,6 +90,9 @@ IndentPPDirectives: BeforeHash
 IndentGotoLabels: false
 IndentExternBlock: Indent
 LineEnding: LF
+PenaltyBreakAssignment: 20
+PenaltyBreakBeforeFirstCallParameter: 80
+PenaltyReturnTypeOnItsOwnLine: 20
 PointerAlignment: Left
 SpaceBeforeParens: ControlStatements
 SpacesBeforeTrailingComments: 4
