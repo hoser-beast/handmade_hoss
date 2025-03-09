@@ -1,0 +1,95 @@
+---
+UseTab: Never
+TabWidth: 4
+Standard: Latest
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+AlignConsecutiveAssignments:
+  Enabled: true
+  AlignCompound: true
+  AcrossComments: false
+  AcrossEmptyLines: false
+  PadOperators: true
+AlignArrayOfStructures: Right
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AlignCaseColons: false
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCaseArrows: false
+AlignConsecutiveTableGenCondOperatorColons:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+AlignEscapedNewlines: LeftWithLastLine
+AlignOperands: AlignAfterOperator
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 2
+AlignAfterOpenBracket: Align
+AlignConsecutiveTableGenDefinitionColons:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignCompound: true
+  PadOperators: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseExpressionOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AlwaysBreakAfterReturnType: All
+AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
+BinPackParameters: false
+BitFieldColonSpacing: After
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterStruct: false
+  AfterObjCDeclaration: true
+  AfterNamespace: true
+  AfterFunction: true
+  SplitEmptyNamespace: true
+  SplitEmptyRecord: true
+  SplitEmptyFunction: true
+  IndentBraces: false
+  AfterEnum: true
+  AfterControlStatement: MultiLine
+  BeforeWhile: true
+  BeforeLambdaBody: true
+  BeforeElse: true
+  BeforeCatch: true
+  AfterExternBlock: true
+  AfterUnion: true
+BreakBeforeBraces: Allman
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentWidth: 4
+IndentPPDirectives: BeforeHash
+IndentGotoLabels: false
+IndentExternBlock: Indent
+LineEnding: LF
+PointerAlignment: Left
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 4
