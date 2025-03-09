@@ -4,3 +4,25 @@
 
 i.e., `subst w: %USERPROFILE%\Documents\Cloud\handmade_hoss`
 
+
+
+The use of { and } inside a case branch is useful for scoping variables within a branch:
+
+switch(x)
+{
+	case 1:
+	{
+		int i = 45;
+		break;
+	}
+	case 2:
+	{
+		i = 23; // Error, `i` is undefined here.
+		break;
+	}
+}
+
+
+Static variables are tremendously useful for the purpose of debugging, however, they probably should never be used in code that is shipped.
+They create nightmares for things like thread safety, etc.
+
