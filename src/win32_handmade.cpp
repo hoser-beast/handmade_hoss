@@ -37,6 +37,7 @@ struct win32_window_dimensions
 // [TODO] Global variable for now.
 global_variable bool                   g_running;
 global_variable win32_offscreen_buffer g_back_buffer;
+global_variable LPDIRECTSOUNDBUFFER    g_secondary_buffer;
 
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD user_index, XINPUT_STATE* state)
 typedef X_INPUT_GET_STATE(x_input_get_state);
@@ -136,9 +137,8 @@ win32_init_dsound(HWND window, i32 samples_per_sec, i32 buffer_size)
             buffer_description.dwBufferBytes = buffer_size;
             buffer_description.lpwfxFormat   = &wave_format;
 
-            LPDIRECTSOUNDBUFFER secondary_buffer;
-            HRESULT             error
-                = direct_sound->CreateSoundBuffer(&buffer_description, &secondary_buffer, 0);
+            HRESULT error
+                = direct_sound->CreateSoundBuffer(&buffer_description, &g_secondary_buffer, 0);
             if (SUCCEEDED(error))
             {
                 OutputDebugStringA("Secondary sound buffer created.\n");
@@ -364,7 +364,17 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
             i32 x_offset = 0;
             i32 y_offset = 0;
 
-            win32_init_dsound(window, 48000, 48000 * sizeof(i16) * 2);
+            b32 sound_is_playing        = false;
+            i32 samples_per_second      = 48000;
+            i32 tone_hz                 = 256;
+            i32 tone_volume             = 1000;
+            u32 running_sample_index    = 0;
+            i32 square_wave_period      = samples_per_second / tone_hz;
+            i32 half_square_wave_period = square_wave_period / 2;
+            i32 bytes_per_sample        = sizeof(i16) * 2;
+            i32 secondary_buffer_size   = samples_per_second * sizeof(i16) * 2;
+
+            win32_init_dsound(window, samples_per_second, secondary_buffer_size);
 
             g_running = true;
             while (g_running)
@@ -421,6 +431,74 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
 #endif
 
                 render_weird_gradient(&g_back_buffer, x_offset, y_offset);
+
+                // [NOTE] DirectSound output test.
+                DWORD play_cursor;
+                DWORD write_cursor;
+                if (SUCCEEDED(g_secondary_buffer->GetCurrentPosition(&play_cursor, &write_cursor)))
+                {
+                    DWORD byte_to_lock = running_sample_index * bytes_per_sample
+                                       % secondary_buffer_size;
+                    DWORD bytes_to_write;
+                    if (byte_to_lock == play_cursor)
+                    {
+                        bytes_to_write = secondary_buffer_size;
+                    }
+                    if (byte_to_lock > play_cursor)
+                    {
+                        bytes_to_write  = secondary_buffer_size - byte_to_lock;
+                        bytes_to_write += play_cursor;
+                    }
+                    else
+                    {
+                        bytes_to_write = play_cursor - byte_to_lock;
+                    }
+
+                    // [TODO] Test this for sound quality. Switch to a sine wave.
+                    VOID* region1;
+                    DWORD region1_size;
+                    VOID* region2;
+                    DWORD region2_size;
+
+                    if (SUCCEEDED(g_secondary_buffer->Lock(byte_to_lock, bytes_to_write, &region1,
+                                                           &region1_size, &region2, &region2_size,
+                                                           0)))
+                    {
+                        // [TODO] Assert that region1_size and region2_size are valid.
+                        // [TODO] Collapse these loops into one.
+                        DWORD region1_sample_count = region1_size / bytes_per_sample;
+                        i16*  sample_out           = (i16*)region1;
+                        for (DWORD sample_index = 0; sample_index < region1_sample_count;
+                             sample_index++)
+                        {
+                            i16 sample_value
+                                = ((running_sample_index++ / half_square_wave_period) % 2)
+                                    ? tone_volume
+                                    : -tone_volume;
+                            *sample_out++ = sample_value;
+                            *sample_out++ = sample_value;
+                        }
+                        DWORD region2_sample_count = region2_size / bytes_per_sample;
+                        sample_out                 = (i16*)region2;
+                        for (DWORD sample_index = 0; sample_index < region2_sample_count;
+                             sample_index++)
+                        {
+                            i16 sample_value
+                                = ((running_sample_index++ / half_square_wave_period) % 2)
+                                    ? tone_volume
+                                    : -tone_volume;
+                            *sample_out++ = sample_value;
+                            *sample_out++ = sample_value;
+                        }
+
+                        g_secondary_buffer->Unlock(region1, region1_size, region2, region2_size);
+                    }
+                }
+                if (!sound_is_playing)
+                {
+                    g_secondary_buffer->Play(0, 0, DSBPLAY_LOOPING);
+                    sound_is_playing = true;
+                }
 
                 win32_window_dimensions dimensions = win32_get_window_dimensions(window);
 
