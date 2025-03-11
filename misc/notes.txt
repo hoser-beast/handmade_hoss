@@ -38,3 +38,14 @@ GetMessageA() blocks when we run out of messages. It will wait until another mes
 Advantage of 0 vs NULL: using 0 requires less defines.
 
 malloc() vs VirtualAlloc(): malloc goes through a crapload of C runtime library code, then call HeapAlloc, then eventually run VirtualAlloc.
+
+
+
+One we start using WM_SYSKEYDOWN et al, DefWindowProc() no longer handles key sequences like Alt+F4 and we must handle them ourselves.
+
+The reason for having `b32` for a 32-bit boolean value, is that we intend that the value will either be zero or non-zero and don't really care about it being a zero or one. This has performance implications because the compiler has to determine if any bits are set and if so, convert it to one. For example, let's say after some bitwise manipulation, we have 0b0010_1000. This will need to be converted to 0b0000_0001.
+
+At least some versions of XInput have a bug that causes a significant stall (several milliseconds) when checking XInputGetState on controller indexes where there is no controller plugged in.
+A better way would be to monitor HID notifications when devices are plugged and unplugged and only poll those devices.
+
+Direct sound can't be loaded until we have a window open.
