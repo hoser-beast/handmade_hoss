@@ -49,3 +49,10 @@ At least some versions of XInput have a bug that causes a significant stall (sev
 A better way would be to monitor HID notifications when devices are plugged and unplugged and only poll those devices.
 
 Direct sound can't be loaded until we have a window open.
+
+
+
+At some point, we hope to remove the C library math functions.
+
+Modern computers have a lot of horsepower to compute floating point. Floating point operations on older machines was very expensive without floating point units. Fixed point was used instead but was still computationally expensive.
+It's very rare that operations with doubles can be as fast as floats due in part to SIMD.
