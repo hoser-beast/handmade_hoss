@@ -56,3 +56,23 @@ At some point, we hope to remove the C library math functions.
 
 Modern computers have a lot of horsepower to compute floating point. Floating point operations on older machines was very expensive without floating point units. Fixed point was used instead but was still computationally expensive.
 It's very rare that operations with doubles can be as fast as floats due in part to SIMD.
+
+
+
+RDTSC (Read Time-Stamp Counter) x86_64 instruction provides the amount of cycles
+of work.
+
+QueryPerformanceCounter() is a Windows high-resolution (<1μs) performance
+counter in real-world ("wallclock") time.
+
+QueryPerformanceFrequency queries how many increments the clock goes through in
+one second. The frequency is fixed at system boot and is consistent across all
+processors. We can query it once upon initialization and store the result.
+
+The reason for not putting a "begin counter" at the start of the loop and the
+"end counter" at the end of the loop is because it may not take into
+consideration the time to return to the top of the loop or the process got
+switched out, etc. We want to guarantee not missing any time.
+
+Functions like wsprintf() are unsafe and Casey does not like to use them in code
+that he ships to the end user.
