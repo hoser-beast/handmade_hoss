@@ -1,9 +1,28 @@
-#include <math.h> // [TODO] Implement sine ourselves.
+/*
+[TODO]:
+    - Saved game locations.
+    - Getting a handle to our own executable file.
+    - Asset loading.
+    - Threading.
+    - Raw input (support for multiple keyboards).
+    - Sleep & time_begin_period().
+    - clip_cursor() for multimonitor support.
+    - Fullscreen support.
+    - WM_SETCURSOR (control cursor visibility).
+    - QueryCancelAutoplay().
+    - WM_ACTIVATEAPP for when we are not the active application.
+    - Blit speed improvements (BitBlt)
+    - Hardware acceleration (OpenGL/Direct3D).
+    - get_keybaord_layout (international layout, etc.).
+    - ...
+*/
+
 #include <dsound.h>
+#include <math.h>    // [TODO] Implement sine ourselves.
 #include <stdint.h>
+#include <stdio.h>
 #include <windows.h>
 #include <xinput.h>
-#include <stdio.h>
 
 #define PI32 3.14159265359f
 
@@ -23,8 +42,10 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef float f32;
+typedef float  f32;
 typedef double f64;
+
+#include "handmade.cpp"
 
 struct win32_offscreen_buffer
 {
@@ -76,14 +97,14 @@ win32_load_x_input(void)
         // [TODO] Fix these variable names.
         XInputGetState = (x_input_get_state*)GetProcAddress(x_input_library, "XInputGetState");
         if (!XInputGetState)
-		{
-			XInputGetState = x_input_get_state_stub;
-		}
+        {
+            XInputGetState = x_input_get_state_stub;
+        }
         XInputSetState = (x_input_set_state*)GetProcAddress(x_input_library, "XInputSetState");
         if (!XInputSetState)
-		{
-			XInputSetState = x_input_set_state_stub;
-		}
+        {
+            XInputSetState = x_input_set_state_stub;
+        }
     }
     else
     {
@@ -190,29 +211,6 @@ win32_get_window_dimensions(HWND window)
 }
 
 internal void
-render_weird_gradient(win32_offscreen_buffer* buffer, i32 blue_offset, i32 green_offset)
-{
-    u8* row = (u8*)buffer->memory;
-
-    for (i32 y = 0; y < buffer->height; y++)
-    {
-        u32* pixel = (u32*)row;
-
-        for (i32 x = 0; x < buffer->width; x++)
-        {
-            // Pixel in memory: BB GG RR xx where xx is padding, BB is blue, GG
-            // is green, and RR is red.
-            u8 blue  = x + blue_offset;
-            u8 green = y + green_offset;
-
-            *pixel++ = (green << 8) | blue;
-        }
-
-        row += buffer->pitch;
-    }
-}
-
-internal void
 win32_resize_dib_section(win32_offscreen_buffer* buffer, i32 width, i32 height)
 {
     i32 bytes_per_pixel = 4;
@@ -255,64 +253,60 @@ win32_display_buffer_in_window(win32_offscreen_buffer* buffer, HDC device_contex
 
 struct win32_sound_output
 {
-	i32 samples_per_second;
-	i32 tone_hz;
-	i16 tone_volume;
-	u32 running_sample_index;
-	i32 wave_period;
-	i32 bytes_per_sample;
-	i32 secondary_buffer_size;
-	f32 t_sine;
-	i32 latency_sample_count;
+    i32 samples_per_second;
+    i32 tone_hz;
+    i16 tone_volume;
+    u32 running_sample_index;
+    i32 wave_period;
+    i32 bytes_per_sample;
+    i32 secondary_buffer_size;
+    f32 t_sine;
+    i32 latency_sample_count;
 };
 
 internal void
 win32_fill_sound_buffer(win32_sound_output* sound_output, DWORD byte_to_lock, DWORD bytes_to_write)
 {
-	VOID* region1;
-	DWORD region1_size;
-	VOID* region2;
-	DWORD region2_size;
+    VOID* region1;
+    DWORD region1_size;
+    VOID* region2;
+    DWORD region2_size;
 
-	if (SUCCEEDED(g_secondary_buffer->Lock(byte_to_lock, bytes_to_write, &region1,
-					&region1_size, &region2, &region2_size,
-					0)))
-	{
-		// [TODO] Assert that region1_size and region2_size are valid.
-		// [TODO] Collapse these loops into one.
-		DWORD region1_sample_count = region1_size / sound_output->bytes_per_sample;
-		i16*  sample_out           = (i16*)region1;
-		for (DWORD sample_index = 0; sample_index < region1_sample_count;
-				sample_index++)
-		{
-			f32 sine_value = sinf(sound_output->t_sine);
-			i16 sample_value = (i16)(sine_value * sound_output->tone_volume);
+    if (SUCCEEDED(g_secondary_buffer->Lock(byte_to_lock, bytes_to_write, &region1, &region1_size,
+                                           &region2, &region2_size, 0)))
+    {
+        // [TODO] Assert that region1_size and region2_size are valid.
+        // [TODO] Collapse these loops into one.
+        DWORD region1_sample_count = region1_size / sound_output->bytes_per_sample;
+        i16*  sample_out           = (i16*)region1;
+        for (DWORD sample_index = 0; sample_index < region1_sample_count; sample_index++)
+        {
+            f32 sine_value   = sinf(sound_output->t_sine);
+            i16 sample_value = (i16)(sine_value * sound_output->tone_volume);
 
-			*sample_out++ = sample_value;
-			*sample_out++ = sample_value;
+            *sample_out++ = sample_value;
+            *sample_out++ = sample_value;
 
-			sound_output->t_sine += 2.0f * PI32 * 1.0f / (f32)sound_output->wave_period;
-			sound_output->running_sample_index++;
-		}
-		DWORD region2_sample_count = region2_size / sound_output->bytes_per_sample;
-		sample_out                 = (i16*)region2;
-		for (DWORD sample_index = 0; sample_index < region2_sample_count;
-				sample_index++)
-		{
-			f32 sine_value = sinf(sound_output->t_sine);
-			i16 sample_value = (i16)(sine_value * sound_output->tone_volume);
+            sound_output->t_sine += 2.0f * PI32 * 1.0f / (f32)sound_output->wave_period;
+            sound_output->running_sample_index++;
+        }
+        DWORD region2_sample_count = region2_size / sound_output->bytes_per_sample;
+        sample_out                 = (i16*)region2;
+        for (DWORD sample_index = 0; sample_index < region2_sample_count; sample_index++)
+        {
+            f32 sine_value   = sinf(sound_output->t_sine);
+            i16 sample_value = (i16)(sine_value * sound_output->tone_volume);
 
-			*sample_out++ = sample_value;
-			*sample_out++ = sample_value;
+            *sample_out++ = sample_value;
+            *sample_out++ = sample_value;
 
-			sound_output->t_sine += 2.0f * PI32 * 1.0f / (f32)sound_output->wave_period;
-			sound_output->running_sample_index++;
-		}
+            sound_output->t_sine += 2.0f * PI32 * 1.0f / (f32)sound_output->wave_period;
+            sound_output->running_sample_index++;
+        }
 
-		g_secondary_buffer->Unlock(region1, region1_size, region2, region2_size);
-	}
+        g_secondary_buffer->Unlock(region1, region1_size, region2, region2_size);
+    }
 }
-
 
 LRESULT CALLBACK
 win32_main_window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param)
@@ -449,21 +443,25 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
             i32 x_offset = 0;
             i32 y_offset = 0;
 
-			win32_sound_output sound_output = {};
+            win32_sound_output sound_output = {};
 
             // b32 sound_is_playing        = false;
             // u32 running_sample_index    = 0;
-            sound_output.samples_per_second      = 48000;
-            sound_output.tone_hz                 = 256;
-            sound_output.tone_volume             = 2048;
+            sound_output.samples_per_second = 48000;
+            sound_output.tone_hz            = 256;
+            sound_output.tone_volume        = 2048;
             sound_output.wave_period      = sound_output.samples_per_second / sound_output.tone_hz;
-            sound_output.bytes_per_sample        = sizeof(i16) * 2;
-            sound_output.secondary_buffer_size   = sound_output.samples_per_second * sound_output.bytes_per_sample;
+            sound_output.bytes_per_sample = sizeof(i16) * 2;
+            sound_output.secondary_buffer_size = sound_output.samples_per_second
+                                               * sound_output.bytes_per_sample;
             sound_output.latency_sample_count = sound_output.samples_per_second / 15;
 
-            win32_init_dsound(window, sound_output.samples_per_second, sound_output.secondary_buffer_size);
-            win32_fill_sound_buffer(&sound_output, 0, sound_output.latency_sample_count * sound_output.bytes_per_sample);
-			g_secondary_buffer->Play(0, 0, DSBPLAY_LOOPING);
+            win32_init_dsound(window, sound_output.samples_per_second,
+                              sound_output.secondary_buffer_size);
+            win32_fill_sound_buffer(&sound_output, 0,
+                                    sound_output.latency_sample_count
+                                        * sound_output.bytes_per_sample);
+            g_secondary_buffer->Play(0, 0, DSBPLAY_LOOPING);
 
             LARGE_INTEGER last_counter;
             QueryPerformanceCounter(&last_counter);
@@ -526,16 +524,26 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
                 }
 #endif
 
-                render_weird_gradient(&g_back_buffer, x_offset, y_offset);
+                game_offscreen_buffer buffer = {};
+                buffer.memory                = g_back_buffer.memory;
+                buffer.width                 = g_back_buffer.width;
+                buffer.height                = g_back_buffer.height;
+                buffer.pitch                 = g_back_buffer.pitch;
+
+                game_update_and_render(&buffer, x_offset, y_offset);
 
                 // [NOTE] DirectSound output test.
                 DWORD play_cursor;
                 DWORD write_cursor;
                 if (SUCCEEDED(g_secondary_buffer->GetCurrentPosition(&play_cursor, &write_cursor)))
                 {
-                    DWORD byte_to_lock = (sound_output.running_sample_index * sound_output.bytes_per_sample)
-                                       % sound_output.secondary_buffer_size;
-                    DWORD target_cursor = (play_cursor + (sound_output.latency_sample_count * sound_output.bytes_per_sample)) % sound_output.secondary_buffer_size;
+                    DWORD byte_to_lock
+                        = (sound_output.running_sample_index * sound_output.bytes_per_sample)
+                        % sound_output.secondary_buffer_size;
+                    DWORD target_cursor
+                        = (play_cursor
+                           + (sound_output.latency_sample_count * sound_output.bytes_per_sample))
+                        % sound_output.secondary_buffer_size;
                     DWORD bytes_to_write;
 
                     if (byte_to_lock > target_cursor)
@@ -548,8 +556,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
                         bytes_to_write = target_cursor - byte_to_lock;
                     }
 
-					win32_fill_sound_buffer(&sound_output, byte_to_lock, bytes_to_write);
-
+                    win32_fill_sound_buffer(&sound_output, byte_to_lock, bytes_to_write);
                 }
 
                 win32_window_dimensions dimensions = win32_get_window_dimensions(window);
@@ -557,21 +564,25 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, i32 cmd_sho
                 win32_display_buffer_in_window(&g_back_buffer, device_context, dimensions.width,
                                                dimensions.height);
 
-                                               u64 end_cycle_count = __rdtsc();
+                u64           end_cycle_count = __rdtsc();
                 LARGE_INTEGER end_counter;
                 QueryPerformanceCounter(&end_counter);
 
-                u64 cycles_elapsed = end_cycle_count - last_cycle_count;
+                u64 cycles_elapsed  = end_cycle_count - last_cycle_count;
                 i64 counter_elapsed = end_counter.QuadPart - last_counter.QuadPart;
-                f32 ms_per_frame = (f32)((1000.0f * (f32)counter_elapsed) / (f32)perf_counter_frequency);
-                f32 fps = (f32)perf_counter_frequency / (f32)counter_elapsed;
+                f32 ms_per_frame
+                    = (f32)((1000.0f * (f32)counter_elapsed) / (f32)perf_counter_frequency);
+                f32 fps  = (f32)perf_counter_frequency / (f32)counter_elapsed;
                 f32 mcpf = (f32)(cycles_elapsed / (1000.0f * 1000.0f));
 
+#if 0
                 char buffer[256];
-                sprintf(buffer, "%.02f ms/frame, %.02f frame/s, %.02f M.cycles/frame\n", ms_per_frame, fps, mcpf);                
+                sprintf(buffer, "%.02f ms/frame, %.02f frame/s, %.02f M.cycles/frame\n",
+                        ms_per_frame, fps, mcpf);
                 OutputDebugStringA(buffer);
+#endif
 
-                last_counter = end_counter;
+                last_counter     = end_counter;
                 last_cycle_count = end_cycle_count;
             }
         }
