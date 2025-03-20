@@ -1,5 +1,5 @@
 #if !defined HANDMADE_H
-
+#define HANDMADE_H
 
 // [NOTE] Services that the game provides to the platform layer.
 // (This may expand in the future, i.e., sound on separate thread.)
@@ -15,7 +15,14 @@ struct game_offscreen_buffer
     i32        pitch;
 };
 
-internal void game_update_and_render(game_offscreen_buffer, int blue_offset, int green_offset);
+struct game_sound_output_buffer
+{
+    i32  samples_per_second;
+    i32  sample_count;
+    i16* samples;
+};
 
-#define HANDMADE_H
+internal void game_update_and_render(game_offscreen_buffer, int blue_offset, int green_offset,
+                                     game_sound_output_buffer* sound_buffer, i32 tone_hz);
+
 #endif
