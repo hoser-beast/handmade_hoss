@@ -44,9 +44,27 @@ game_output_sound(game_sound_output_buffer* sound_buffer, i32 tone_hz)
 }
 
 internal void
-game_update_and_render(game_offscreen_buffer* buffer, int blue_offset, int green_offset,
-                       game_sound_output_buffer* sound_buffer, i32 tone_hz)
+game_update_and_render(game_input* input, game_offscreen_buffer* buffer, game_sound_output_buffer* sound_buffer)
 {
+    int blue_offset  = 0;
+    int green_offset = 0;
+    i32 tone_hz      = 256;
+
+    game_controller_input* input0 = &input->controllers[0];
+    if (input0->is_analog)
+    {
+        tone_hz      = 256 + (int)(128.0f * input0->end_x);
+        blue_offset += (int)4.0f * (input0->end_y);
+    }
+    else
+    {
+    }
+
+    if (input0->down.ended_down)
+    {
+        green_offset += 1;
+    }
+
     // [TODO] Allow sample offset here for more robust platform options.
     game_output_sound(sound_buffer, tone_hz);
     render_weird_gradient(buffer, blue_offset, green_offset);
