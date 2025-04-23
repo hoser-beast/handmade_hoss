@@ -44,28 +44,35 @@ game_output_sound(game_sound_output_buffer* sound_buffer, i32 tone_hz)
 }
 
 internal void
-game_update_and_render(game_input* input, game_offscreen_buffer* buffer, game_sound_output_buffer* sound_buffer)
+game_update_and_render(game_memory* memory, game_input* input, game_offscreen_buffer* buffer,
+                       game_sound_output_buffer* sound_buffer)
 {
-    int blue_offset  = 0;
-    int green_offset = 0;
-    i32 tone_hz      = 256;
+    assert(sizeof(game_state) <= memory->permanent_storage_size);
+
+    game_state* state = (game_state*)memory->permanent_storage;
+    if (!memory->is_initialized)
+    {
+        state->tone_hz         = 256;
+        memory->is_initialized = true;    // [TODO] This may be more appropriate to do in the platform layer.
+    }
 
     game_controller_input* input0 = &input->controllers[0];
     if (input0->is_analog)
     {
-        tone_hz      = 256 + (int)(128.0f * input0->end_x);
-        blue_offset += (int)4.0f * (input0->end_y);
+        state->tone_hz      = 256 + (int)(128.0f * input0->end_x);
+        state->blue_offset += (int)4.0f * (input0->end_y);
     }
     else
     {
+        // [TODO] Use digital movement tuning.
     }
 
     if (input0->down.ended_down)
     {
-        green_offset += 1;
+        state->green_offset += 1;
     }
 
     // [TODO] Allow sample offset here for more robust platform options.
-    game_output_sound(sound_buffer, tone_hz);
-    render_weird_gradient(buffer, blue_offset, green_offset);
+    game_output_sound(sound_buffer, state->tone_hz);
+    render_weird_gradient(buffer, state->blue_offset, state->green_offset);
 }
